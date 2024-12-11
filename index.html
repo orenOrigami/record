@@ -58,7 +58,7 @@
       const payload = {
         ID: instanceId,
         link: fileLink,
-        mp3: 'recording.mp3',
+        mp3: 'recording.mp3', // Placeholder for future use
         mp4: null, // Placeholder for future use
       };
 
@@ -94,12 +94,12 @@
         };
 
         mediaRecorder.onstop = () => {
-          const blob = new Blob(audioChunks, { type: 'audio/mp3' });
+          const blob = new Blob(audioChunks, { type: 'audio/webm' }); // Changed to webm type
           const audioURL = URL.createObjectURL(blob);
 
           audioElement.src = audioURL;
           downloadLink.href = audioURL;
-          downloadLink.download = 'recording.mp3';
+          downloadLink.download = 'recording.webm'; // Updated download format
           downloadLink.style.display = 'inline-block';
 
           const instanceId = Date.now(); // Example unique ID (timestamp)
