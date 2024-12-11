@@ -38,6 +38,7 @@
   <h1>Voice Recorder</h1>
   <button id="startButton">Start Recording</button>
   <button id="stopButton" disabled>Stop Recording</button>
+  <button id="sendButton" disabled>Send to Webhook</button>
   <audio id="audioElement" controls></audio>
   <a id="downloadLink" style="display: none;">Download Recording</a>
   <div id="loader">Sending to webhook...</div>
@@ -49,6 +50,7 @@
 
     const startButton = document.getElementById('startButton');
     const stopButton = document.getElementById('stopButton');
+    const sendButton = document.getElementById('sendButton');
     const audioElement = document.getElementById('audioElement');
     const downloadLink = document.getElementById('downloadLink');
     const loader = document.getElementById('loader');
@@ -56,23 +58,29 @@
 
     let mediaRecorder;
     let audioChunks = [];
+    let blob;
     let startTime;
     let durationInterval;
 
-    async function sendToWebhook(blob, instanceId) {
+    async function sendToWebhook() {
+      if (!blob) {
+        alert('No recording to send!');
+        return;
+      }
+
       loader.style.display = 'block';
 
       const formData = new FormData();
       formData.append('audio', blob, 'recording.webm'); // Send the Blob directly
       formData.append('metadata', JSON.stringify({
-        ID: instanceId,
+        ID: Date.now(),
         mp3: 'recording.mp3',
         mp4: null, // Placeholder for future use
       }));
 
       // Log the request data
       debugDiv.textContent = `Request being sent to webhook:\n${JSON.stringify({
-        ID: instanceId,
+        ID: Date.now(),
         mp3: 'recording.mp3',
         mp4: null,
       }, null, 2)}`;
@@ -114,7 +122,7 @@
 
         mediaRecorder.onstop = () => {
           console.log('Recording stopped');  // Log when stop is called
-          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          blob = new Blob(audioChunks, { type: 'audio/webm' });
           const audioURL = URL.createObjectURL(blob);
 
           audioElement.src = audioURL;
@@ -122,17 +130,13 @@
           downloadLink.download = 'recording.webm';
           downloadLink.style.display = 'inline-block';
 
-          const instanceId = Date.now(); // Example unique ID (timestamp)
-          sendToWebhook(blob, instanceId);
-
-          clearInterval(durationInterval);
-          document.title = 'Voice Recorder';
           audioChunks = [];
         };
 
         mediaRecorder.start();
         startButton.disabled = true;
         stopButton.disabled = false;
+        sendButton.disabled = false;
 
         startTime = Date.now();
         durationInterval = setInterval(() => {
@@ -157,6 +161,12 @@
       }
       startButton.disabled = false;
       stopButton.disabled = true;
+    });
+
+    sendButton.addEventListener('click', () => {
+      console.log('Send button clicked');  // Log when send button is clicked
+      sendToWebhook();
+      sendButton.disabled = true;
     });
   </script>
 </body>
