@@ -22,6 +22,16 @@
     #loader {
       display: none;
     }
+    #debug {
+      margin-top: 20px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      font-family: monospace;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background-color: #f7f7f7;
+    }
   </style>
 </head>
 <body>
@@ -32,6 +42,8 @@
   <a id="downloadLink" style="display: none;">Download Recording</a>
   <div id="loader">Sending to webhook...</div>
 
+  <div id="debug"></div>
+
   <script>
     const webhookUrl = 'https://your-webhook-url.com'; // Replace with your webhook URL
 
@@ -40,6 +52,7 @@
     const audioElement = document.getElementById('audioElement');
     const downloadLink = document.getElementById('downloadLink');
     const loader = document.getElementById('loader');
+    const debugDiv = document.getElementById('debug');
 
     let mediaRecorder;
     let audioChunks = [];
@@ -50,8 +63,6 @@
       loader.style.display = 'block';
 
       const formData = new FormData();
-
-      // Generate a temporary link to the recording
       const fileLink = URL.createObjectURL(blob);
 
       // Create JSON payload
@@ -62,14 +73,22 @@
         mp4: null, // Placeholder for future use
       };
 
-      formData.append('mp3', blob, 'recording.mp3');
+      formData.append('mp3', blob, 'recording.webm');
       formData.append('metadata', JSON.stringify(payload));
+
+      // Log the request data
+      debugDiv.textContent = `Request being sent to webhook:\n${JSON.stringify(payload, null, 2)}`;
 
       try {
         const response = await fetch(webhookUrl, {
           method: 'POST',
           body: formData,
         });
+
+        const responseText = await response.text(); // Capture the response text
+
+        // Display response text in the debug area
+        debugDiv.textContent += `\n\nResponse from webhook:\n${responseText}`;
 
         if (response.ok) {
           alert('Recording sent successfully!');
@@ -78,6 +97,7 @@
         }
       } catch (error) {
         console.error('Error sending to webhook:', error);
+        debugDiv.textContent += `\n\nError sending to webhook: ${error.message}`;
         alert('An error occurred while sending the recording.');
       } finally {
         loader.style.display = 'none';
@@ -94,12 +114,12 @@
         };
 
         mediaRecorder.onstop = () => {
-          const blob = new Blob(audioChunks, { type: 'audio/webm' }); // Changed to webm type
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
           const audioURL = URL.createObjectURL(blob);
 
           audioElement.src = audioURL;
           downloadLink.href = audioURL;
-          downloadLink.download = 'recording.webm'; // Updated download format
+          downloadLink.download = 'recording.webm';
           downloadLink.style.display = 'inline-block';
 
           const instanceId = Date.now(); // Example unique ID (timestamp)
