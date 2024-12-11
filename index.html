@@ -110,10 +110,12 @@
         mediaRecorder = new MediaRecorder(stream);
 
         mediaRecorder.ondataavailable = (event) => {
+          console.log('Data available:', event.data);  // Log data available event
           audioChunks.push(event.data);
         };
 
         mediaRecorder.onstop = () => {
+          console.log('Recording stopped');  // Log when stop is called
           const blob = new Blob(audioChunks, { type: 'audio/webm' });
           const audioURL = URL.createObjectURL(blob);
 
@@ -139,13 +141,22 @@
           const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
           document.title = `Recording... ${elapsedTime}s`;
         }, 1000);
+
+        console.log('Recording started');  // Log when recording starts
       } catch (error) {
         alert('Microphone access is required for recording.');
+        console.error('Microphone access error:', error);
       }
     });
 
     stopButton.addEventListener('click', () => {
-      mediaRecorder.stop();
+      console.log('Stop button clicked');  // Log when stop button is clicked
+      try {
+        mediaRecorder.stop();
+      } catch (error) {
+        console.error('Error stopping media recorder:', error);
+        debugDiv.textContent += `\n\nError stopping media recorder: ${error.message}`;
+      }
       startButton.disabled = false;
       stopButton.disabled = true;
     });
