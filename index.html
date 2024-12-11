@@ -78,12 +78,11 @@
         mp4: null, // Placeholder for future use
       }));
 
-      // Log the request data
-      debugDiv.textContent = `Request being sent to webhook:\n${JSON.stringify({
-        ID: Date.now(),
-        mp3: 'recording.mp3',
-        mp4: null,
-      }, null, 2)}`;
+      // Log the FormData being sent
+      debugDiv.textContent = `FormData being sent to webhook: \n`;
+      for (const pair of formData.entries()) {
+        debugDiv.textContent += `${pair[0]}: ${pair[1]}\n`;
+      }
 
       try {
         const response = await fetch(webhookUrl, {
@@ -94,7 +93,7 @@
         const responseText = await response.text(); // Capture the response text
 
         // Display response text in the debug area
-        debugDiv.textContent += `\n\nResponse from webhook:\n${responseText}`;
+        debugDiv.textContent += `\nResponse from webhook:\n${responseText}`;
 
         if (response.ok) {
           alert('Recording sent successfully!');
@@ -103,7 +102,7 @@
         }
       } catch (error) {
         console.error('Error sending to webhook:', error);
-        debugDiv.textContent += `\n\nError sending to webhook: ${error.message}`;
+        debugDiv.textContent += `\nError sending to webhook: ${error.message}`;
         alert('An error occurred while sending the recording.');
       } finally {
         loader.style.display = 'none';
