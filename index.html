@@ -63,21 +63,19 @@
       loader.style.display = 'block';
 
       const formData = new FormData();
-      const fileLink = URL.createObjectURL(blob);
-
-      // Create JSON payload
-      const payload = {
+      formData.append('audio', blob, 'recording.webm'); // Send the Blob directly
+      formData.append('metadata', JSON.stringify({
         ID: instanceId,
-        link: fileLink,
-        mp3: 'recording.mp3', // Placeholder for future use
+        mp3: 'recording.mp3',
         mp4: null, // Placeholder for future use
-      };
-
-      formData.append('mp3', blob, 'recording.webm');
-      formData.append('metadata', JSON.stringify(payload));
+      }));
 
       // Log the request data
-      debugDiv.textContent = `Request being sent to webhook:\n${JSON.stringify(payload, null, 2)}`;
+      debugDiv.textContent = `Request being sent to webhook:\n${JSON.stringify({
+        ID: instanceId,
+        mp3: 'recording.mp3',
+        mp4: null,
+      }, null, 2)}`;
 
       try {
         const response = await fetch(webhookUrl, {
