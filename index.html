@@ -5,86 +5,93 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audio Recording</title>
     <style>
+        /* Simple styling for buttons, loader, and debug area */
         body {
             font-family: Arial, sans-serif;
-            margin: 0;
             padding: 20px;
         }
-        #debug {
-            margin-top: 20px;
-            font-family: monospace;
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            background: #f0f0f0;
-            padding: 10px;
-            border: 1px solid #ccc;
+        #startBtn, #stopBtn {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        #stopBtn {
+            display: none;
         }
         #loader {
             display: none;
+            font-size: 18px;
             margin-top: 20px;
-            text-align: center;
+        }
+        #debugDiv {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
     <h1>Audio Recording</h1>
-    <button id="startRecording">Start Recording</button>
-    <button id="stopRecording" disabled>Stop Recording</button>
-    <button id="sendRecording" disabled>Send to Webhook</button>
-
-    <div id="debug"></div>
-    <div id="loader">Sending to Webhook...</div>
+    <button id="startBtn">Start Recording</button>
+    <button id="stopBtn">Stop Recording</button>
+    <div id="loader">Sending data...</div>
+    <div id="debugDiv"></div>
 
     <script>
-        const startButton = document.getElementById('startRecording');
-        const stopButton = document.getElementById('stopRecording');
-        const sendButton = document.getElementById('sendRecording');
-        const debugDiv = document.getElementById('debug');
-        const loader = document.getElementById('loader');
+        const webhookUrl = "https://hook.eu2.make.com/804e9xf2lxqosna4nqq8emvyaa4i9uvu"; // Your webhook URL
 
+        let blob; // To store the audio Blob
+        let recordingID = null; // Optional: To store the ID passed in URL
+
+        // Elements for UI
+        const startBtn = document.getElementById("startBtn");
+        const stopBtn = document.getElementById("stopBtn");
+        const loader = document.getElementById("loader");
+        const debugDiv = document.getElementById("debugDiv");
+
+        // Setup for recording
         let mediaRecorder;
-        let blob;
-        const webhookUrl = 'https://hook.eu2.make.com/804e9xf2lxqosna4nqq8emvyaa4i9uvu'; // Replace with your actual webhook URL
+        let audioChunks = [];
 
-        let urlParams = new URLSearchParams(window.location.search); // Get URL parameters
-        let recordingID = urlParams.get('id'); // Get 'id' parameter from the URL
+        // Start recording
+        startBtn.addEventListener("click", async () => {
+            try {
+                audioChunks = [];
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                mediaRecorder.onstop = () => {
+                    blob = new Blob(audioChunks, { type: "audio/webm" });
+                    console.log("Recording stopped and stored.");
+                };
+                mediaRecorder.start();
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                console.log("Recording started...");
+            } catch (err) {
+                console.error("Error accessing microphone: ", err);
+                alert("Error accessing microphone.");
+            }
+        });
 
-        if (!recordingID) {
-            debugDiv.textContent = 'No ID parameter found in URL';
-        } else {
-            debugDiv.textContent = `Recording ID from URL: ${recordingID}`;
-        }
-
-        startButton.onclick = startRecording;
-        stopButton.onclick = stopRecording;
-        sendButton.onclick = sendToWebhook;
-
-        async function startRecording() {
-            debugDiv.textContent = 'Starting recording...';
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            
-            mediaRecorder.ondataavailable = (event) => {
-                blob = event.data;
-            };
-
-            mediaRecorder.onstop = () => {
-                debugDiv.textContent += '\nRecording stopped';
-                sendButton.disabled = false;
-            };
-
-            mediaRecorder.start();
-            startButton.disabled = true;
-            stopButton.disabled = false;
-            debugDiv.textContent += '\nRecording started...';
-        }
-
-        function stopRecording() {
+        // Stop recording
+        stopBtn.addEventListener("click", () => {
             mediaRecorder.stop();
-            startButton.disabled = false;
-            stopButton.disabled = true;
-        }
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
+            console.log("Recording stopped.");
+        });
 
+        // Send audio data to webhook using `curl`
         async function sendToWebhook() {
             if (!blob) {
                 alert('No recording to send!');
@@ -94,19 +101,25 @@
             loader.style.display = 'block';
 
             const id = recordingID || Date.now();  // Use ID from URL or fallback to timestamp
-            const formData = new FormData();
-            formData.append('audio', blob, 'recording.webm');
-            formData.append('metadata', JSON.stringify({
+            const metadata = {
                 ID: id,
                 mp3: 'recording.mp3',
                 mp4: null,  // Placeholder for future use
-            }));
+            };
 
             // Log the FormData being sent
-            debugDiv.textContent += `\nFormData being sent to webhook: \n`;
-            for (const pair of formData.entries()) {
-                debugDiv.textContent += `${pair[0]}: ${pair[1]}\n`;
-            }
+            debugDiv.textContent += `\nSending FormData to webhook:\nMetadata: ${JSON.stringify(metadata)}`;
+
+            const formData = new FormData();
+            formData.append('audio', blob, 'recording.webm');
+            formData.append('metadata', JSON.stringify(metadata));
+
+            // Send the data using a `curl` equivalent command
+            const formDataStr = await getFormDataAsString(formData);  // Convert FormData to a string (for curl compatibility)
+
+            const curlCommand = `curl -X POST ${webhookUrl} -H "Content-Type: multipart/form-data" -F "audio=@recording.webm" -F "metadata=${encodeURIComponent(JSON.stringify(metadata))}"`;
+
+            console.log(`Curl Command: \n${curlCommand}`);
 
             try {
                 const response = await fetch(webhookUrl, {
@@ -121,7 +134,6 @@
 
                 if (response.ok) {
                     alert('Recording sent successfully!');
-                    // Keep everything on the same page, showing success message with ID
                     debugDiv.textContent += `\nRecording sent successfully with ID: ${id}`;
                 } else {
                     alert('Failed to send the recording.');
@@ -133,6 +145,15 @@
             } finally {
                 loader.style.display = 'none';
             }
+        }
+
+        // Convert FormData to string (for curl compatibility)
+        async function getFormDataAsString(formData) {
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
+            return JSON.stringify(data);
         }
     </script>
 </body>
