@@ -131,12 +131,12 @@
           downloadLink.style.display = 'inline-block';
 
           audioChunks = [];
+          sendButton.disabled = false; // Enable the send button once recording is stopped
         };
 
         mediaRecorder.start();
         startButton.disabled = true;
         stopButton.disabled = false;
-        sendButton.disabled = false;
 
         startTime = Date.now();
         durationInterval = setInterval(() => {
@@ -155,9 +155,9 @@
       console.log('Stop button clicked');  // Log when stop button is clicked
       try {
         mediaRecorder.stop();
+        console.log('MediaRecorder stopped');  // Log when media recorder stop is confirmed
       } catch (error) {
         console.error('Error stopping media recorder:', error);
-        debugDiv.textContent += `\n\nError stopping media recorder: ${error.message}`;
       }
       startButton.disabled = false;
       stopButton.disabled = true;
@@ -166,7 +166,6 @@
     sendButton.addEventListener('click', () => {
       console.log('Send button clicked');  // Log when send button is clicked
       sendToWebhook();
-      sendButton.disabled = true;
     });
   </script>
 </body>
