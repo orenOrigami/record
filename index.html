@@ -44,7 +44,16 @@
 
         let mediaRecorder;
         let blob;
-        const webhookUrl = 'https://hook.eu2.make.com/804e9xf2lxqosna4nqq8emvyaa4i9uvu'; // Replace with your actual webhook URL
+        const webhookUrl = 'YOUR_WEBHOOK_URL'; // Replace with your actual webhook URL
+
+        let urlParams = new URLSearchParams(window.location.search); // Get URL parameters
+        let recordingID = urlParams.get('id'); // Get 'id' parameter from the URL
+
+        if (!recordingID) {
+            debugDiv.textContent = 'No ID parameter found in URL';
+        } else {
+            debugDiv.textContent = `Recording ID from URL: ${recordingID}`;
+        }
 
         startButton.onclick = startRecording;
         stopButton.onclick = stopRecording;
@@ -84,7 +93,7 @@
 
             loader.style.display = 'block';
 
-            const id = Date.now();  // Generate a unique ID based on the current timestamp
+            const id = recordingID || Date.now();  // Use ID from URL or fallback to timestamp
             const formData = new FormData();
             formData.append('audio', blob, 'recording.webm');
             formData.append('metadata', JSON.stringify({
