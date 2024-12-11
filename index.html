@@ -89,9 +89,10 @@
             startBtn.disabled = false;
             stopBtn.disabled = true;
             console.log("Recording stopped.");
+            sendToWebhook(); // Automatically send the recording when stopped
         });
 
-        // Send audio data to webhook using `curl`
+        // Send audio data to webhook
         async function sendToWebhook() {
             if (!blob) {
                 alert('No recording to send!');
@@ -114,13 +115,7 @@
             formData.append('audio', blob, 'recording.webm');
             formData.append('metadata', JSON.stringify(metadata));
 
-            // Send the data using a `curl` equivalent command
-            const formDataStr = await getFormDataAsString(formData);  // Convert FormData to a string (for curl compatibility)
-
-            const curlCommand = `curl -X POST ${webhookUrl} -H "Content-Type: multipart/form-data" -F "audio=@recording.webm" -F "metadata=${encodeURIComponent(JSON.stringify(metadata))}"`;
-
-            console.log(`Curl Command: \n${curlCommand}`);
-
+            // Send the data to webhook
             try {
                 const response = await fetch(webhookUrl, {
                     method: 'POST',
@@ -145,15 +140,6 @@
             } finally {
                 loader.style.display = 'none';
             }
-        }
-
-        // Convert FormData to string (for curl compatibility)
-        async function getFormDataAsString(formData) {
-            const data = {};
-            formData.forEach((value, key) => {
-                data[key] = value;
-            });
-            return JSON.stringify(data);
         }
     </script>
 </body>
