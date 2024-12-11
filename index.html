@@ -1,171 +1,130 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Voice Recorder</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      margin: 20px;
-    }
-    button {
-      margin: 10px;
-      padding: 10px 20px;
-      font-size: 16px;
-    }
-    audio {
-      margin-top: 20px;
-      display: block;
-    }
-    #loader {
-      display: none;
-    }
-    #debug {
-      margin-top: 20px;
-      white-space: pre-wrap;
-      word-wrap: break-word;
-      font-family: monospace;
-      font-size: 14px;
-      border: 1px solid #ccc;
-      padding: 10px;
-      background-color: #f7f7f7;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Recorder</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        #debug {
+            margin-top: 20px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            background: #f0f0f0;
+            padding: 10px;
+            border: 1px solid #ccc;
+        }
+        #loader {
+            display: none;
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
 </head>
 <body>
-  <h1>Voice Recorder</h1>
-  <button id="startButton">Start Recording</button>
-  <button id="stopButton" disabled>Stop Recording</button>
-  <button id="sendButton" disabled>Send to Webhook</button>
-  <audio id="audioElement" controls></audio>
-  <a id="downloadLink" style="display: none;">Download Recording</a>
-  <div id="loader">Sending to webhook...</div>
+    <h1>Audio Recording</h1>
+    <button id="startRecording">Start Recording</button>
+    <button id="stopRecording" disabled>Stop Recording</button>
+    <button id="sendRecording" disabled>Send to Webhook</button>
 
-  <div id="debug"></div>
+    <div id="debug"></div>
+    <div id="loader">Sending to Webhook...</div>
 
-  <script>
-    const webhookUrl = 'https://hook.eu2.make.com/804e9xf2lxqosna4nqq8emvyaa4i9uvu'; // Replace with your webhook URL
+    <script>
+        const startButton = document.getElementById('startRecording');
+        const stopButton = document.getElementById('stopRecording');
+        const sendButton = document.getElementById('sendRecording');
+        const debugDiv = document.getElementById('debug');
+        const loader = document.getElementById('loader');
 
-    const startButton = document.getElementById('startButton');
-    const stopButton = document.getElementById('stopButton');
-    const sendButton = document.getElementById('sendButton');
-    const audioElement = document.getElementById('audioElement');
-    const downloadLink = document.getElementById('downloadLink');
-    const loader = document.getElementById('loader');
-    const debugDiv = document.getElementById('debug');
+        let mediaRecorder;
+        let blob;
+        const webhookUrl = 'https://hook.eu2.make.com/804e9xf2lxqosna4nqq8emvyaa4i9uvu'; // Replace with your actual webhook URL
 
-    let mediaRecorder;
-    let audioChunks = [];
-    let blob;
-    let startTime;
-    let durationInterval;
+        startButton.onclick = startRecording;
+        stopButton.onclick = stopRecording;
+        sendButton.onclick = sendToWebhook;
 
-    async function sendToWebhook() {
-      if (!blob) {
-        alert('No recording to send!');
-        return;
-      }
+        async function startRecording() {
+            debugDiv.textContent = 'Starting recording...';
+            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            mediaRecorder = new MediaRecorder(stream);
+            
+            mediaRecorder.ondataavailable = (event) => {
+                blob = event.data;
+            };
 
-      loader.style.display = 'block';
+            mediaRecorder.onstop = () => {
+                debugDiv.textContent += '\nRecording stopped';
+                sendButton.disabled = false;
+            };
 
-      const formData = new FormData();
-      formData.append('audio', blob, 'recording.webm'); // Send the Blob directly
-      formData.append('metadata', JSON.stringify({
-        ID: Date.now(),
-        mp3: 'recording.mp3',
-        mp4: null, // Placeholder for future use
-      }));
-
-      // Log the FormData being sent
-      debugDiv.textContent = `FormData being sent to webhook: \n`;
-      for (const pair of formData.entries()) {
-        debugDiv.textContent += `${pair[0]}: ${pair[1]}\n`;
-      }
-
-      try {
-        const response = await fetch(webhookUrl, {
-          method: 'POST',
-          body: formData,
-        });
-
-        const responseText = await response.text(); // Capture the response text
-
-        // Display response text in the debug area
-        debugDiv.textContent += `\nResponse from webhook:\n${responseText}`;
-
-        if (response.ok) {
-          alert('Recording sent successfully!');
-        } else {
-          alert('Failed to send the recording.');
+            mediaRecorder.start();
+            startButton.disabled = true;
+            stopButton.disabled = false;
+            debugDiv.textContent += '\nRecording started...';
         }
-      } catch (error) {
-        console.error('Error sending to webhook:', error);
-        debugDiv.textContent += `\nError sending to webhook: ${error.message}`;
-        alert('An error occurred while sending the recording.');
-      } finally {
-        loader.style.display = 'none';
-      }
-    }
 
-    startButton.addEventListener('click', async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        mediaRecorder = new MediaRecorder(stream);
+        function stopRecording() {
+            mediaRecorder.stop();
+            startButton.disabled = false;
+            stopButton.disabled = true;
+        }
 
-        mediaRecorder.ondataavailable = (event) => {
-          console.log('Data available:', event.data);  // Log data available event
-          audioChunks.push(event.data);
-        };
+        async function sendToWebhook() {
+            if (!blob) {
+                alert('No recording to send!');
+                return;
+            }
 
-        mediaRecorder.onstop = () => {
-          console.log('Recording stopped');  // Log when stop is called
-          blob = new Blob(audioChunks, { type: 'audio/webm' });
-          const audioURL = URL.createObjectURL(blob);
+            loader.style.display = 'block';
 
-          audioElement.src = audioURL;
-          downloadLink.href = audioURL;
-          downloadLink.download = 'recording.webm';
-          downloadLink.style.display = 'inline-block';
+            const id = Date.now();  // Generate a unique ID based on the current timestamp
+            const formData = new FormData();
+            formData.append('audio', blob, 'recording.webm');
+            formData.append('metadata', JSON.stringify({
+                ID: id,
+                mp3: 'recording.mp3',
+                mp4: null,  // Placeholder for future use
+            }));
 
-          audioChunks = [];
-          sendButton.disabled = false; // Enable the send button once recording is stopped
-        };
+            // Log the FormData being sent
+            debugDiv.textContent += `\nFormData being sent to webhook: \n`;
+            for (const pair of formData.entries()) {
+                debugDiv.textContent += `${pair[0]}: ${pair[1]}\n`;
+            }
 
-        mediaRecorder.start();
-        startButton.disabled = true;
-        stopButton.disabled = false;
+            try {
+                const response = await fetch(webhookUrl, {
+                    method: 'POST',
+                    body: formData,
+                });
 
-        startTime = Date.now();
-        durationInterval = setInterval(() => {
-          const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
-          document.title = `Recording... ${elapsedTime}s`;
-        }, 1000);
+                const responseText = await response.text(); // Capture the response text
 
-        console.log('Recording started');  // Log when recording starts
-      } catch (error) {
-        alert('Microphone access is required for recording.');
-        console.error('Microphone access error:', error);
-      }
-    });
+                // Display response text in the debug area
+                debugDiv.textContent += `\nResponse from webhook:\n${responseText}`;
 
-    stopButton.addEventListener('click', () => {
-      console.log('Stop button clicked');  // Log when stop button is clicked
-      try {
-        mediaRecorder.stop();
-        console.log('MediaRecorder stopped');  // Log when media recorder stop is confirmed
-      } catch (error) {
-        console.error('Error stopping media recorder:', error);
-      }
-      startButton.disabled = false;
-      stopButton.disabled = true;
-    });
-
-    sendButton.addEventListener('click', () => {
-      console.log('Send button clicked');  // Log when send button is clicked
-      sendToWebhook();
-    });
-  </script>
+                if (response.ok) {
+                    alert('Recording sent successfully!');
+                    // Redirect or create a URL with the ID parameter to access the recording
+                    window.location.href = `https://orenorigami.github.io/record/${id}`;
+                } else {
+                    alert('Failed to send the recording.');
+                }
+            } catch (error) {
+                console.error('Error sending to webhook:', error);
+                debugDiv.textContent += `\nError sending to webhook: ${error.message}`;
+                alert('An error occurred while sending the recording.');
+            } finally {
+                loader.style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html>
