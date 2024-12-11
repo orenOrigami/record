@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Audio Recorder</title>
+    <title>Audio Recording</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -121,8 +121,8 @@
 
                 if (response.ok) {
                     alert('Recording sent successfully!');
-                    // Redirect or create a URL with the ID parameter to access the recording
-                    window.location.href = `https://orenorigami.github.io/record/${id}`;
+                    // Keep everything on the same page, showing success message with ID
+                    debugDiv.textContent += `\nRecording sent successfully with ID: ${id}`;
                 } else {
                     alert('Failed to send the recording.');
                 }
