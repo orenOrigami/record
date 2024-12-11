@@ -5,35 +5,78 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audio Recording</title>
     <style>
-        /* Simple styling for buttons, loader, and debug area */
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f6f9;
             padding: 20px;
+            text-align: center;
         }
+
+        h1 {
+            color: #4A90E2;
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+
         #startBtn, #stopBtn {
-            padding: 10px 20px;
-            font-size: 16px;
+            padding: 12px 24px;
+            font-size: 18px;
             margin: 10px;
             cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: #4CAF50;
+            color: white;
+            transition: background-color 0.3s ease;
         }
+
+        #startBtn:hover, #stopBtn:hover {
+            background-color: #45a049;
+        }
+
         #stopBtn {
+            background-color: #f44336;
             display: none;
         }
+
         #loader {
             display: none;
             font-size: 18px;
             margin-top: 20px;
+            color: #333;
         }
+
         #debugDiv {
             margin-top: 20px;
             white-space: pre-wrap;
             font-family: monospace;
             font-size: 14px;
-            background-color: #f4f4f4;
-            padding: 10px;
-            border-radius: 5px;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
             border: 1px solid #ddd;
-            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            color: #333;
+        }
+
+        #webhookLink {
+            display: none;
+            margin-top: 15px;
+            color: #4CAF50;
+            text-decoration: none;
+            font-size: 16px;
+        }
+
+        #webhookLink:hover {
+            text-decoration: underline;
+        }
+
+        #errorMsg {
+            display: none;
+            color: red;
+            font-size: 16px;
+            margin-top: 10px;
         }
     </style>
 </head>
@@ -42,7 +85,9 @@
     <button id="startBtn">Start Recording</button>
     <button id="stopBtn">Stop Recording</button>
     <div id="loader">Sending data...</div>
+    <div id="errorMsg"></div>
     <div id="debugDiv"></div>
+    <a id="webhookLink" target="_blank">View Webhook Link</a>
 
     <script>
         const webhookUrl = "https://hook.eu2.make.com/804e9xf2lxqosna4nqq8emvyaa4i9uvu"; // Your webhook URL
@@ -55,6 +100,8 @@
         const stopBtn = document.getElementById("stopBtn");
         const loader = document.getElementById("loader");
         const debugDiv = document.getElementById("debugDiv");
+        const webhookLink = document.getElementById("webhookLink");
+        const errorMsg = document.getElementById("errorMsg");
 
         // Setup for recording
         let mediaRecorder;
@@ -91,14 +138,15 @@
             console.log("Recording stopped.");
         });
 
-        // Send audio data to webhook using `curl`
+        // Send audio data to webhook
         async function sendToWebhook() {
             if (!blob) {
-                alert('No recording to send!');
+                showError('No recording to send!');
                 return;
             }
 
             loader.style.display = 'block';
+            errorMsg.style.display = 'none';
 
             const id = recordingID || Date.now();  // Use ID from URL or fallback to timestamp
             const metadata = {
@@ -114,13 +162,7 @@
             formData.append('audio', blob, 'recording.webm');
             formData.append('metadata', JSON.stringify(metadata));
 
-            // Send the data using a `curl` equivalent command
-            const formDataStr = await getFormDataAsString(formData);  // Convert FormData to a string (for curl compatibility)
-
-            const curlCommand = `curl -X POST ${webhookUrl} -H "Content-Type: multipart/form-data" -F "audio=@recording.webm" -F "metadata=${encodeURIComponent(JSON.stringify(metadata))}"`;
-
-            console.log(`Curl Command: \n${curlCommand}`);
-
+            // Send the data using fetch
             try {
                 const response = await fetch(webhookUrl, {
                     method: 'POST',
@@ -135,16 +177,27 @@
                 if (response.ok) {
                     alert('Recording sent successfully!');
                     debugDiv.textContent += `\nRecording sent successfully with ID: ${id}`;
+
+                    // Show the webhook URL link for viewing or debugging
+                    webhookLink.href = `${webhookUrl}?ID=${id}`;
+                    webhookLink.style.display = 'block';
+
                 } else {
-                    alert('Failed to send the recording.');
+                    showError('Failed to send the recording.');
                 }
             } catch (error) {
                 console.error('Error sending to webhook:', error);
                 debugDiv.textContent += `\nError sending to webhook: ${error.message}`;
-                alert('An error occurred while sending the recording.');
+                showError('An error occurred while sending the recording.');
             } finally {
                 loader.style.display = 'none';
             }
+        }
+
+        // Show error message
+        function showError(message) {
+            errorMsg.textContent = message;
+            errorMsg.style.display = 'block';
         }
 
         // Convert FormData to string (for curl compatibility)
