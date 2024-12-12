@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Audio Recording</title>
     <style>
-        /* Simple styling for buttons, loader, and debug area */
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
@@ -33,7 +32,6 @@
             padding: 10px;
             border-radius: 5px;
             border: 1px solid #ddd;
-            margin-top: 20px;
         }
     </style>
 </head>
@@ -45,22 +43,19 @@
     <div id="debugDiv"></div>
 
     <script>
-        const webhookUrl = "https://hook.eu2.make.com/804e9xf2lxqosna4nqq8emvyaa4i9uvu"; // Your webhook URL
+        const webhookUrl = "https://hook.eu2.make.com/804e9xf2lxqosna4nqq8emvyaa4i9uvu";
 
-        let blob; // To store the audio Blob
-        let recordingID = null; // Optional: To store the ID passed in URL
+        let blob;
+        let recordingID = null;
 
-        // Elements for UI
         const startBtn = document.getElementById("startBtn");
         const stopBtn = document.getElementById("stopBtn");
         const loader = document.getElementById("loader");
         const debugDiv = document.getElementById("debugDiv");
 
-        // Setup for recording
         let mediaRecorder;
         let audioChunks = [];
 
-        // Start recording
         startBtn.addEventListener("click", async () => {
             try {
                 audioChunks = [];
@@ -74,8 +69,8 @@
                     console.log("Recording stopped and stored.");
                 };
                 mediaRecorder.start();
-                startBtn.disabled = true;
-                stopBtn.disabled = false;
+                startBtn.style.display = "none";
+                stopBtn.style.display = "inline-block";
                 console.log("Recording started...");
             } catch (err) {
                 console.error("Error accessing microphone: ", err);
@@ -83,15 +78,13 @@
             }
         });
 
-        // Stop recording
         stopBtn.addEventListener("click", () => {
             mediaRecorder.stop();
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
+            startBtn.style.display = "inline-block";
+            stopBtn.style.display = "none";
             console.log("Recording stopped.");
         });
 
-        // Send audio data to webhook using `curl`
         async function sendToWebhook() {
             if (!blob) {
                 alert('No recording to send!');
@@ -100,26 +93,19 @@
 
             loader.style.display = 'block';
 
-            const id = recordingID || Date.now();  // Use ID from URL or fallback to timestamp
+            const id = recordingID || Date.now();
             const metadata = {
                 ID: id,
+                link: null, // Placeholder for future link
                 mp3: 'recording.mp3',
-                mp4: null,  // Placeholder for future use
+                mp4: null,
             };
 
-            // Log the FormData being sent
             debugDiv.textContent += `\nSending FormData to webhook:\nMetadata: ${JSON.stringify(metadata)}`;
 
             const formData = new FormData();
             formData.append('audio', blob, 'recording.webm');
             formData.append('metadata', JSON.stringify(metadata));
-
-            // Send the data using a `curl` equivalent command
-            const formDataStr = await getFormDataAsString(formData);  // Convert FormData to a string (for curl compatibility)
-
-            const curlCommand = `curl -X POST ${webhookUrl} -H "Content-Type: multipart/form-data" -F "audio=@recording.webm" -F "metadata=${encodeURIComponent(JSON.stringify(metadata))}"`;
-
-            console.log(`Curl Command: \n${curlCommand}`);
 
             try {
                 const response = await fetch(webhookUrl, {
@@ -127,9 +113,8 @@
                     body: formData,
                 });
 
-                const responseText = await response.text(); // Capture the response text
+                const responseText = await response.text();
 
-                // Display response text in the debug area
                 debugDiv.textContent += `\nResponse from webhook:\n${responseText}`;
 
                 if (response.ok) {
@@ -145,15 +130,6 @@
             } finally {
                 loader.style.display = 'none';
             }
-        }
-
-        // Convert FormData to string (for curl compatibility)
-        async function getFormDataAsString(formData) {
-            const data = {};
-            formData.forEach((value, key) => {
-                data[key] = value;
-            });
-            return JSON.stringify(data);
         }
     </script>
 </body>
