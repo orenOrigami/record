@@ -9,14 +9,15 @@
             font-family: Arial, sans-serif;
             padding: 20px;
         }
-        #startBtn, #stopBtn {
+        button {
             padding: 10px 20px;
             font-size: 16px;
             margin: 10px;
             cursor: pointer;
         }
-        #stopBtn {
-            display: none;
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
         }
         #loader {
             display: none;
@@ -38,7 +39,8 @@
 <body>
     <h1>Audio Recording</h1>
     <button id="startBtn">Start Recording</button>
-    <button id="stopBtn">Stop Recording</button>
+    <button id="stopBtn" disabled>Stop Recording</button>
+    <button id="sendBtn" disabled>Send Recording</button>
     <div id="loader">Sending data...</div>
     <div id="debugDiv"></div>
 
@@ -47,9 +49,10 @@
 
         let blob;
         let recordingID = null;
-
+        
         const startBtn = document.getElementById("startBtn");
         const stopBtn = document.getElementById("stopBtn");
+        const sendBtn = document.getElementById("sendBtn");
         const loader = document.getElementById("loader");
         const debugDiv = document.getElementById("debugDiv");
 
@@ -67,10 +70,11 @@
                 mediaRecorder.onstop = () => {
                     blob = new Blob(audioChunks, { type: "audio/webm" });
                     console.log("Recording stopped and stored.");
+                    sendBtn.disabled = false;
                 };
                 mediaRecorder.start();
-                startBtn.style.display = "none";
-                stopBtn.style.display = "inline-block";
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
                 console.log("Recording started...");
             } catch (err) {
                 console.error("Error accessing microphone: ", err);
@@ -80,25 +84,39 @@
 
         stopBtn.addEventListener("click", () => {
             mediaRecorder.stop();
-            startBtn.style.display = "inline-block";
-            stopBtn.style.display = "none";
+            startBtn.disabled = false;
+            stopBtn.disabled = true;
             console.log("Recording stopped.");
         });
 
-        async function sendToWebhook() {
+        async function convertToMp4(blob) {
+            const ffmpeg = await import('https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js');
+            const { createFFmpeg, fetchFile } = ffmpeg;
+            const ffmpegInstance = createFFmpeg({ log: true });
+            await ffmpegInstance.load();
+            
+            ffmpegInstance.FS('writeFile', 'input.webm', await fetchFile(blob));
+            await ffmpegInstance.run('-i', 'input.webm', 'output.mp4');
+            const mp4Data = ffmpegInstance.FS('readFile', 'output.mp4');
+
+            return new Blob([mp4Data.buffer], { type: 'video/mp4' });
+        }
+
+        sendBtn.addEventListener("click", async () => {
             if (!blob) {
                 alert('No recording to send!');
                 return;
             }
 
             loader.style.display = 'block';
+            sendBtn.disabled = true;
 
             const id = recordingID || Date.now();
             const metadata = {
                 ID: id,
-                link: null, // Placeholder for future link
+                link: null,
                 mp3: 'recording.mp3',
-                mp4: null,
+                mp4: 'recording.mp4',
             };
 
             debugDiv.textContent += `\nSending FormData to webhook:\nMetadata: ${JSON.stringify(metadata)}`;
@@ -108,6 +126,9 @@
             formData.append('metadata', JSON.stringify(metadata));
 
             try {
+                const mp4Blob = await convertToMp4(blob);
+                formData.append('audio_mp4', mp4Blob, 'recording.mp4');
+
                 const response = await fetch(webhookUrl, {
                     method: 'POST',
                     body: formData,
@@ -129,8 +150,9 @@
                 alert('An error occurred while sending the recording.');
             } finally {
                 loader.style.display = 'none';
+                sendBtn.disabled = false;
             }
-        }
+        });
     </script>
 </body>
 </html>
